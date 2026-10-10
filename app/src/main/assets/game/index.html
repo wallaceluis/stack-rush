@@ -12,7 +12,9 @@
 
 <div id="hud" class="hidden">
   <div id="score">0</div>
+  <div id="zone-label" class="zone-label"></div>
   <div id="combo" class="hidden">PERFEITO!</div>
+  <div id="zone" class="zone hidden"></div>
 </div>
 
 <div id="menu" class="screen">
@@ -23,6 +25,10 @@
   <h1 class="logo">STACK<br><span>RUSH</span></h1>
   <div class="best" data-i18n="best">Recorde</div>
   <div id="menu-best" class="best-value">0</div>
+  <div class="missions">
+    <div class="missions-title" data-i18n="missions">Missões</div>
+    <div id="mission-list"></div>
+  </div>
   <div class="tap-hint" data-i18n="tap">Toque para jogar</div>
   <div class="menu-actions">
     <button id="btn-shop" class="btn secondary" data-i18n="shop">Temas</button>
@@ -35,6 +41,7 @@
   <div class="over-row"><span data-i18n="best">Recorde</span>: <b id="over-best">0</b></div>
   <div class="over-row"><span class="coin-ico"></span> +<b id="over-coins">0</b></div>
   <div id="new-best" class="new-best hidden" data-i18n="newbest">Novo recorde!</div>
+  <div id="over-missions" class="over-missions"></div>
   <div class="over-actions">
     <button id="btn-continue" class="btn reward"><span class="ad-badge">AD</span> <span data-i18n="continue">Continuar</span></button>
     <button id="btn-double" class="btn reward"><span class="ad-badge">AD</span> <span data-i18n="double">Dobrar moedas</span></button>

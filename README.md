@@ -20,6 +20,21 @@ O que passar da borda é cortado. Acertos perfeitos seguidos fazem o bloco cresc
 | Banner adaptativo | Banner | Só no menu, fim de jogo e temas (nunca durante a partida, para não gerar clique acidental) |
 | Remover anúncios | Compra única (`remove_ads`) | Tela de temas |
 
+## Zonas e missões
+
+A cada 15 andares o jogo entra numa zona nova, com uma regra diferente:
+
+| Andares | Zona | O que muda |
+|---|---|---|
+| 0–14 | Calmaria | Normal |
+| 15–29 | Ventania | A velocidade do bloco oscila |
+| 30–44 | Espelho | O bloco pode vir de qualquer lado |
+| 45–59 | Turbo | 25% mais rápido |
+| 60+ | Caos | Tudo junto |
+
+Cada zona alcançada vale +10 moedas. Há sempre 3 missões ativas (pontuação, perfeitos seguidos, zona,
+partidas, blocos no total) que pagam moedas e ficam mais difíceis conforme o jogador completa.
+
 As moedas desbloqueiam 6 temas de cores, o que dá motivo para o jogador voltar e assistir vídeos premiados.
 Há também bônus diário de 50 moedas.
 
@@ -51,7 +66,19 @@ O GitHub Actions gera tudo a cada push na `main` (aba **Actions** → último bu
 
 Localmente (precisa do Android SDK): `./gradlew assembleDebug bundleRelease`.
 
-## Checklist para publicar
+## Publicar na CrazyGames (web, sem custo)
+
+O jogo já usa o SDK v3 da CrazyGames: vídeo premiado e intersticial pelo portal, `gameplayStart/Stop`,
+`happytime` no recorde, áudio mudo durante anúncios e progresso salvo na conta do jogador.
+O botão "remover anúncios" some fora do Android, como o portal exige.
+
+1. Gere o pacote: `scripts/build-crazygames.sh` (ou baixe o artifact `stack-rush-crazygames` do Actions).
+2. Crie a conta em https://developer.crazygames.com e envie o conteúdo de `dist/crazygames` (o `.zip`).
+3. Use `store/` para capa e screenshots. Orientação: retrato; controles: toque, clique ou espaço.
+
+O mesmo pacote sem o SDK (a pasta `assets/game`) serve para itch.io ou GameDistribution.
+
+## Checklist para publicar na Play Store
 
 1. **AdMob**: crie o app em https://admob.google.com, crie 3 blocos (banner adaptativo, intersticial, premiado)
    e coloque os IDs em `gradle.properties` ou como secrets do repositório

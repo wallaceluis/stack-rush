@@ -14,6 +14,18 @@
   const DAILY_BONUS = 50;
   const FREE_COINS = 100;
   const SKU_REMOVE_ADS = 'remove_ads';
+  const ZONE_SIZE = 15;              // andares por zona
+  const ZONE_BONUS = 10;             // moedas por zona alcançada
+  const MISSION_SLOTS = 3;
+
+  // Cada zona muda a regra do jogo. Depois da última, ela se repete.
+  const ZONES = [
+    { id: 'calm' },
+    { id: 'wind', wobble: true },          // velocidade oscila
+    { id: 'mirror', randomSide: true },    // bloco vem de qualquer lado
+    { id: 'turbo', fast: true },           // mais rápido
+    { id: 'chaos', wobble: true, randomSide: true, fast: true },
+  ];
 
   const THEMES = [
     { id: 'classic', name: 'Clássico', price: 0,    bg: ['#1b1f3b', '#3a2f6b'], hue: 200, step: 6,  sat: 65, light: 58 },
@@ -29,11 +41,18 @@
     continue: 'Continue', double: 'Double coins', retry: 'Play again', home: 'Menu', themes: 'Themes',
     freecoins: '+100 free coins', noads: 'Remove ads', perfect: 'PERFECT!', daily: 'Daily bonus',
     owned: 'Owned', noadsSoon: 'Coming soon', notReady: 'Ad not available right now',
-    notEnough: 'Not enough coins',
+    notEnough: 'Not enough coins', missions: 'Missions', missionDone: 'Mission complete', zone: 'ZONE',
+    z_calm: 'Calm', z_wind: 'Windy', z_mirror: 'Mirror', z_turbo: 'Turbo', z_chaos: 'Chaos',
+    m_score: 'Reach {n} points', m_combo: '{n} perfects in a row', m_perfects: '{n} perfects in one run',
+    m_games: 'Play {n} games', m_zone: 'Reach zone {n}', m_total: 'Stack {n} blocks in total',
   };
   const I18N_PT = {
     perfect: 'PERFEITO!', daily: 'Bônus diário', owned: 'Seu', noadsSoon: 'Em breve',
-    notReady: 'Anúncio indisponível agora', notEnough: 'Moedas insuficientes',
+    notReady: 'Anúncio indisponível agora', notEnough: 'Moedas insuficientes', missions: 'Missões',
+    missionDone: 'Missão concluída', zone: 'ZONA',
+    z_calm: 'Calmaria', z_wind: 'Ventania', z_mirror: 'Espelho', z_turbo: 'Turbo', z_chaos: 'Caos',
+    m_score: 'Chegue a {n} pontos', m_combo: '{n} perfeitos seguidos', m_perfects: '{n} perfeitos numa partida',
+    m_games: 'Jogue {n} partidas', m_zone: 'Chegue à zona {n}', m_total: 'Empilhe {n} blocos no total',
   };
   const isPt = (navigator.language || 'pt').toLowerCase().startsWith('pt');
   function t(key) { return (isPt ? I18N_PT[key] : I18N_EN[key]) || key; }
@@ -47,11 +66,11 @@
 
   // ---------- Persistência ----------
   const STORE_KEY = 'stackrush.v1';
-  const save = Object.assign(
-    { best: 0, coins: 0, theme: 'classic', owned: ['classic'], sound: true, lastDaily: '', games: 0 },
-    (function () { try { return JSON.parse(localStorage.getItem(STORE_KEY)) || {}; } catch (e) { return {}; } })()
-  );
-  function persist() { try { localStorage.setItem(STORE_KEY, JSON.stringify(save)); } catch (e) { /* sem storage */ } }
+  const save = { best: 0, coins: 0, theme: 'classic', owned: ['classic'], sound: true, lastDaily: '', games: 0, missions: [], mLevel: 0 };
+  function loadSave() {
+    try { Object.assign(save, JSON.parse(Platform.getItem(STORE_KEY)) || {}); } catch (e) { /* save corrompido: começa do zero */ }
+  }
+  function persist() { Platform.setItem(STORE_KEY, JSON.stringify(save)); }
 
   // ---------- Elementos ----------
   const $ = function (id) { return document.getElementById(id); };
@@ -65,12 +84,15 @@
     btnContinue: $('btn-continue'), btnDouble: $('btn-double'), btnRetry: $('btn-retry'), btnHome: $('btn-home'),
     btnShop: $('btn-shop'), btnShopBack: $('btn-shop-back'), btnSound: $('btn-sound'),
     btnFreeCoins: $('btn-free-coins'), btnNoAds: $('btn-noads'), themeList: $('theme-list'), toast: $('toast'),
+    zone: $('zone'), zoneLabel: $('zone-label'), missionList: $('mission-list'), overMissions: $('over-missions'),
   };
 
   // ---------- Som ----------
   let audio = null;
+  let adMuted = false;
+  Platform.onMute(function (m) { adMuted = m; });
   function tone(freq, dur, type, vol) {
-    if (!save.sound) return;
+    if (!save.sound || adMuted) return;
     try {
       audio = audio || new (window.AudioContext || window.webkitAudioContext)();
       const o = audio.createOscillator();
@@ -86,7 +108,7 @@
 
   // ---------- Estado do jogo ----------
   let W = 0, H = 0, DPR = 1, S = 1;
-  let state = 'menu';
+  let state = 'loading'; // vira 'menu' quando a plataforma e o save carregam
   let stack = [];       // blocos fixos: {cx, cz, w, d, y, hue}
   let cur = null;       // bloco em movimento: {cx, cz, w, d, y, hue, axis, off, dir}
   let falling = [];     // pedaços caindo
@@ -96,6 +118,8 @@
   let runCoins = 0, usedContinue = false, usedDouble = false;
   let overTimer = 0;
   let gamesSinceAd = 0, lastAdAt = 0;
+  let windT = 0;
+  let maxCombo = 0;
 
   function theme() { return THEMES.find(function (th) { return th.id === save.theme; }) || THEMES[0]; }
 
@@ -113,7 +137,7 @@
     for (let i = 0; i < 6; i++) stack.push({ cx: 0, cz: 0, w: BASE, d: BASE, y: -i * LAYER, hue: theme().hue });
     stack.reverse();
     falling = []; rings = [];
-    camY = 0; score = 0; combo = 0; perfects = 0;
+    camY = 0; score = 0; combo = 0; perfects = 0; maxCombo = 0;
     cur = null;
   }
 
@@ -127,10 +151,34 @@
       cx: p.cx, cz: p.cz, w: p.w, d: p.d, y: p.y + LAYER,
       hue: th.hue + (score + 1) * th.step, axis: axis, off: -RANGE, dir: 1,
     };
-    if (axis === 'x') cur.cx = p.cx - RANGE; else cur.cz = p.cz - RANGE;
+    if (zone().randomSide && Math.random() < 0.5) { cur.off = RANGE; cur.dir = -1; }
+    if (axis === 'x') cur.cx = p.cx + cur.off; else cur.cz = p.cz + cur.off;
   }
 
-  function speed() { return Math.min(11 + score * 0.22, 24); }
+  function zoneIndex(s) { return Math.min(Math.floor(s / ZONE_SIZE), ZONES.length - 1); }
+  function zone() { return ZONES[zoneIndex(score)]; }
+  function zoneName(i) { return t('zone') + ' ' + (i + 1) + ' · ' + t('z_' + ZONES[i].id); }
+
+  function speed() {
+    const z = zone();
+    let v = Math.min(11 + score * 0.18, 22);
+    if (z.fast) v *= 1.25;
+    if (z.wobble) v *= 0.45 + 1.1 * Math.abs(Math.sin(windT));
+    return v;
+  }
+
+  function announceZone() {
+    const i = zoneIndex(score);
+    ui.zone.textContent = zoneName(i);
+    ui.zone.classList.remove('hidden');
+    ui.zone.style.animation = 'none'; void ui.zone.offsetWidth; ui.zone.style.animation = '';
+    clearTimeout(announceZone._t);
+    announceZone._t = setTimeout(function () { ui.zone.classList.add('hidden'); }, 1800);
+    updateZoneLabel();
+    tone(523, 0.12, 'triangle', 0.15); setTimeout(function () { tone(784, 0.2, 'triangle', 0.15); }, 120);
+    Platform.vibrate(40);
+  }
+  function updateZoneLabel() { ui.zoneLabel.textContent = zoneName(zoneIndex(score)); }
 
   // ---------- Lógica de colocação ----------
   function place() {
@@ -143,6 +191,7 @@
     if (abs <= PERFECT_TOL) {
       if (ax === 'x') cur.cx = p.cx; else cur.cz = p.cz;
       combo++; perfects++;
+      maxCombo = Math.max(maxCombo, combo);
       if (combo >= GROW_AFTER) {
         if (ax === 'x') cur.w = Math.min(BASE, cur.w + GROW_BY); else cur.d = Math.min(BASE, cur.d + GROW_BY);
       }
@@ -173,6 +222,8 @@
     stack.push({ cx: cur.cx, cz: cur.cz, w: cur.w, d: cur.d, y: cur.y, hue: cur.hue });
     score++;
     ui.score.textContent = score;
+    trackRun();
+    if (score % ZONE_SIZE === 0 && score / ZONE_SIZE < ZONES.length) announceZone();
     spawn();
   }
 
@@ -182,6 +233,7 @@
     combo = 0;
     state = 'dying';
     overTimer = 0.7;
+    Platform.gameplayStop();
     tone(110, 0.4, 'sawtooth', 0.12);
     Platform.vibrate(80);
   }
@@ -194,6 +246,68 @@
     ui.combo.style.animation = 'none'; void ui.combo.offsetWidth; ui.combo.style.animation = '';
     clearTimeout(comboTimer);
     comboTimer = setTimeout(function () { ui.combo.classList.add('hidden'); }, 900);
+  }
+
+  // ---------- Missões ----------
+  // Tipos "run" valem dentro de uma partida; os demais acumulam entre partidas.
+  const MISSIONS = {
+    score:    { run: true,  target: function (l) { return Math.min(10 + l * 5, 90); } },
+    combo:    { run: true,  target: function (l) { return Math.min(3 + Math.floor(l / 2), 12); } },
+    perfects: { run: true,  target: function (l) { return Math.min(5 + l * 2, 35); } },
+    zone:     { run: true,  target: function (l) { return Math.min(2 + Math.floor(l / 3), ZONES.length); } },
+    games:    { run: false, target: function (l) { return 3 + Math.floor(l / 3); } },
+    total:    { run: false, target: function (l) { return 50 + l * 25; } },
+  };
+
+  function newMission(exclude) {
+    const types = Object.keys(MISSIONS).filter(function (k) { return exclude.indexOf(k) < 0; });
+    const type = types[Math.floor(Math.random() * types.length)];
+    const lvl = save.mLevel;
+    return { type: type, target: MISSIONS[type].target(lvl), progress: 0, reward: 40 + lvl * 10 };
+  }
+
+  function ensureMissions() {
+    if (!Array.isArray(save.missions)) save.missions = [];
+    save.missions = save.missions.filter(function (m) { return m && MISSIONS[m.type]; });
+    while (save.missions.length < MISSION_SLOTS) {
+      save.missions.push(newMission(save.missions.map(function (m) { return m.type; })));
+    }
+  }
+
+  function missionText(m) { return t('m_' + m.type).replace('{n}', m.target); }
+
+  // Atualiza o progresso das missões durante a partida.
+  function trackRun() {
+    const run = { score: score, combo: maxCombo, perfects: perfects, zone: zoneIndex(score) + 1 };
+    save.missions.forEach(function (m) {
+      if (m.type === 'total') m.progress++;
+      else if (MISSIONS[m.type].run) m.progress = Math.max(m.progress, run[m.type]);
+    });
+  }
+
+  // No fim da partida: conta a partida, entrega as recompensas e sorteia missões novas.
+  function settleMissions() {
+    save.missions.forEach(function (m) { if (m.type === 'games') m.progress++; });
+    const done = save.missions.filter(function (m) { return m.progress >= m.target; });
+    let reward = 0;
+    done.forEach(function (m) { reward += m.reward; save.mLevel++; });
+    save.missions = save.missions.filter(function (m) { return done.indexOf(m) < 0; });
+    ensureMissions();
+    save.coins += reward;
+    return done;
+  }
+
+  function renderMissions() {
+    ui.missionList.innerHTML = '';
+    save.missions.forEach(function (m) {
+      const pct = Math.min(100, Math.round(m.progress / m.target * 100));
+      const row = document.createElement('div');
+      row.className = 'mission';
+      row.innerHTML = '<div class="m-top"><span class="m-text"></span><span class="m-reward"><span class="coin-ico"></span>' + m.reward + '</span></div>' +
+        '<div class="m-bar"><i style="width:' + pct + '%"></i></div>';
+      row.querySelector('.m-text').textContent = missionText(m) + '  ' + Math.min(m.progress, m.target) + '/' + m.target;
+      ui.missionList.appendChild(row);
+    });
   }
 
   // ---------- Telas ----------
@@ -210,6 +324,7 @@
     ui.menuCoins.textContent = save.coins;
     ui.menuBest.textContent = save.best;
     ui.btnSound.textContent = save.sound ? '🔊' : '🔇';
+    renderMissions();
     show('menu');
   }
 
@@ -219,8 +334,11 @@
     ui.score.textContent = '0';
     ui.combo.classList.add('hidden');
     state = 'playing';
+    windT = 0;
+    updateZoneLabel();
     show(null);
     spawn();
+    Platform.gameplayStart();
     Platform.logEvent('game_start', save.games);
   }
 
@@ -228,11 +346,21 @@
     state = 'over';
     save.games++;
     gamesSinceAd++;
-    runCoins = score + perfects;
+    runCoins = score + perfects + zoneIndex(score) * ZONE_BONUS;
     save.coins += runCoins;
     const isBest = score > save.best;
-    if (isBest) save.best = score;
+    if (isBest) { save.best = score; Platform.happytime(); }
+    const done = settleMissions();
     persist();
+
+    ui.overMissions.innerHTML = '';
+    done.forEach(function (m) {
+      const el = document.createElement('div');
+      el.className = 'over-mission';
+      el.textContent = '✓ ' + missionText(m) + '  +' + m.reward;
+      ui.overMissions.appendChild(el);
+    });
+    if (done.length) setTimeout(function () { tone(660, 0.15, 'triangle'); tone(990, 0.3, 'triangle'); }, 200);
 
     ui.overScore.textContent = score;
     ui.overBest.textContent = save.best;
@@ -258,6 +386,7 @@
     state = 'playing';
     show(null);
     spawn();
+    Platform.gameplayStart();
     Platform.logEvent('continue', score);
   }
 
@@ -270,7 +399,7 @@
 
   function rewarded(placement, onGranted) {
     if (!Platform.isRewardedReady()) { toast(t('notReady')); return; }
-    Platform.showRewarded(placement, function (granted) { if (granted) onGranted(); });
+    Platform.showRewarded(placement, function (granted) { if (granted) onGranted(); else toast(t('notReady')); });
   }
 
   // ---------- Loja ----------
@@ -295,7 +424,7 @@
       });
       ui.themeList.appendChild(el);
     });
-    ui.btnNoAds.classList.toggle('hidden', Platform.isAdFree());
+    ui.btnNoAds.classList.toggle('hidden', !Platform.canPurchase || Platform.isAdFree());
   }
 
   // ---------- Entrada ----------
@@ -399,6 +528,7 @@
     last = now;
 
     if (state === 'playing' && cur) {
+      windT += dt * 2.4;
       cur.off += cur.dir * speed() * dt;
       if (cur.off > RANGE) { cur.off = RANGE; cur.dir = -1; }
       if (cur.off < -RANGE) { cur.off = -RANGE; cur.dir = 1; }
@@ -427,7 +557,12 @@
   // ---------- Início ----------
   window.addEventListener('resize', resize);
   resize();
+  resetWorld();
+  requestAnimationFrame(frame);
 
+  Platform.ready.then(function () {
+  loadSave();
+  ensureMissions();
   const today = new Date().toISOString().slice(0, 10);
   if (save.lastDaily !== today) {
     const first = !save.lastDaily;
@@ -437,11 +572,12 @@
   }
 
   goMenu();
-  requestAnimationFrame(frame);
+  Platform.loadingStop();
+  });
 
   // exposto para testes automatizados
   window.__game = {
     get state() { return state; }, get score() { return score; }, get cur() { return cur; },
-    top: top, place: function () { if (cur) place(); }, save: save,
+    top: top, place: function () { if (cur) place(); }, save: save, zoneIndex: zoneIndex,
   };
 })();
