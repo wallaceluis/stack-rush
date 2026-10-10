@@ -5,7 +5,7 @@
   const BASE = 10;            // lado do bloco inicial (unidades do mundo)
   const LAYER = 2;            // altura de cada camada
   const RANGE = 12;           // distância de onde o bloco vem
-  const PERFECT_TOL = 0.3;    // tolerância para "perfeito"
+  const PERFECT_TOL = 0.45;   // tolerância para "perfeito"
   const GROW_AFTER = 3;       // perfeitos seguidos para começar a crescer
   const GROW_BY = 0.6;
   const INTERSTITIAL_EVERY = 3;      // partidas entre intersticiais
@@ -28,12 +28,13 @@
   ];
 
   const THEMES = [
-    { id: 'classic', name: 'Clássico', price: 0,    bg: ['#1b1f3b', '#3a2f6b'], hue: 200, step: 6,  sat: 65, light: 58 },
-    { id: 'neon',    name: 'Neon',     price: 150,  bg: ['#05010f', '#1a0638'], hue: 290, step: 9,  sat: 95, light: 55 },
-    { id: 'sunset',  name: 'Pôr do sol', price: 300, bg: ['#ff7e5f', '#5b2a86'], hue: 20, step: 4,  sat: 85, light: 60 },
-    { id: 'ocean',   name: 'Oceano',   price: 500,  bg: ['#012a4a', '#2c7da0'], hue: 180, step: 3,  sat: 70, light: 55 },
-    { id: 'candy',   name: 'Doce',     price: 800,  bg: ['#ffafcc', '#a2d2ff'], hue: 330, step: 12, sat: 80, light: 72 },
-    { id: 'gold',    name: 'Ouro',     price: 1500, bg: ['#1a1405', '#4a3b0b'], hue: 45,  step: 1,  sat: 90, light: 55 },
+    // edge: contorno dos blocos · top: desenho no topo · fx: efeito de fundo
+    { id: 'classic', name: 'Clássico', price: 0,    bg: ['#1b1f3b', '#3a2f6b'], hue: 200, step: 6,  sat: 65, light: 58, edge: 'dark',  top: 'bevel',   fx: 'stars' },
+    { id: 'neon',    name: 'Neon',     price: 150,  bg: ['#05010f', '#1a0638'], hue: 290, step: 9,  sat: 95, light: 50, edge: 'glow',  top: 'grid',    fx: 'synth' },
+    { id: 'sunset',  name: 'Pôr do sol', price: 300, bg: ['#ff7e5f', '#5b2a86'], hue: 20, step: 4,  sat: 85, light: 60, edge: 'dark',  top: 'bevel',   fx: 'sun' },
+    { id: 'ocean',   name: 'Oceano',   price: 500,  bg: ['#012a4a', '#2c7da0'], hue: 180, step: 3,  sat: 70, light: 55, edge: 'light', top: 'bevel',   fx: 'bubbles' },
+    { id: 'candy',   name: 'Doce',     price: 800,  bg: ['#ffafcc', '#a2d2ff'], hue: 330, step: 12, sat: 80, light: 72, edge: 'light', top: 'stripes', fx: 'confetti' },
+    { id: 'gold',    name: 'Ouro',     price: 1500, bg: ['#1a1405', '#4a3b0b'], hue: 45,  step: 1,  sat: 90, light: 55, edge: 'dark',  top: 'shine',   fx: 'sparkles' },
   ];
 
   const I18N_EN = {
@@ -161,10 +162,10 @@
 
   function speed() {
     const z = zone();
-    let v = Math.min(11 + score * 0.18, 22);
-    if (z.fast) v *= 1.25;
-    // onda senoidal lenta (~5 s por ciclo) entre 65% e 135% da velocidade, sem trancos
-    if (z.wobble) v *= 1 + 0.35 * Math.sin(windT);
+    let v = Math.min(9 + score * 0.12, 18);
+    if (z.fast) v *= 1.15;
+    // onda senoidal lenta (~6 s por ciclo) entre 72% e 112% da velocidade, sem trancos
+    if (z.wobble) v *= 0.92 + 0.2 * Math.sin(windT);
     return v;
   }
 
@@ -473,25 +474,150 @@
   function proj(x, y, z) {
     return [W / 2 + (x - z) * C30 * S, H * 0.6 + ((x + z) * S30 - (y - camY)) * S];
   }
-  function poly(pts, fill) {
+  function path(pts) {
     ctx.beginPath();
     ctx.moveTo(pts[0][0], pts[0][1]);
     for (let i = 1; i < pts.length; i++) ctx.lineTo(pts[i][0], pts[i][1]);
     ctx.closePath();
-    ctx.fillStyle = fill; ctx.fill();
   }
+  function poly(pts, fill) { path(pts); ctx.fillStyle = fill; ctx.fill(); }
+  function line(a, b) { ctx.beginPath(); ctx.moveTo(a[0], a[1]); ctx.lineTo(b[0], b[1]); ctx.stroke(); }
   function color(hue, dl) {
     const th = theme();
     return 'hsl(' + (((hue % 360) + 360) % 360) + ',' + th.sat + '%,' + Math.max(0, Math.min(100, th.light + dl)) + '%)';
   }
   function drawBox(b, alpha) {
+    const th = theme();
     const x0 = b.cx - b.w / 2, x1 = b.cx + b.w / 2, z0 = b.cz - b.d / 2, z1 = b.cz + b.d / 2;
     const y0 = b.y, y1 = b.y + LAYER;
+    const right = [proj(x1, y1, z0), proj(x1, y1, z1), proj(x1, y0, z1), proj(x1, y0, z0)]; // face +x
+    const left = [proj(x0, y1, z1), proj(x1, y1, z1), proj(x1, y0, z1), proj(x0, y0, z1)];  // face +z
+    const topF = [proj(x0, y1, z0), proj(x1, y1, z0), proj(x1, y1, z1), proj(x0, y1, z1)];  // topo
     ctx.globalAlpha = alpha == null ? 1 : alpha;
-    poly([proj(x1, y1, z0), proj(x1, y1, z1), proj(x1, y0, z1), proj(x1, y0, z0)], color(b.hue, -14)); // face +x
-    poly([proj(x0, y1, z1), proj(x1, y1, z1), proj(x1, y0, z1), proj(x0, y0, z1)], color(b.hue, -4));  // face +z
-    poly([proj(x0, y1, z0), proj(x1, y1, z0), proj(x1, y1, z1), proj(x0, y1, z1)], color(b.hue, 10));  // topo
+    poly(right, color(b.hue, -20));
+    poly(left, color(b.hue, -6));
+    poly(topF, color(b.hue, 12));
+
+    // desenho leve no topo
+    ctx.lineWidth = 1;
+    if (th.top === 'bevel') {
+      const m = Math.min(0.6, b.w * 0.2, b.d * 0.2);
+      ctx.strokeStyle = 'rgba(255,255,255,.28)';
+      path([proj(x0 + m, y1, z0 + m), proj(x1 - m, y1, z0 + m), proj(x1 - m, y1, z1 - m), proj(x0 + m, y1, z1 - m)]); ctx.stroke();
+    } else if (th.top === 'stripes') {
+      ctx.strokeStyle = 'rgba(255,255,255,.4)'; ctx.lineWidth = 2;
+      for (let x = Math.ceil(x0 / 1.6) * 1.6; x < x1; x += 1.6) line(proj(x, y1, z0), proj(x, y1, z1));
+    } else if (th.top === 'grid') {
+      ctx.strokeStyle = color(b.hue, 30);
+      ctx.globalAlpha *= 0.45;
+      for (let x = Math.ceil(x0 / 2.5) * 2.5; x < x1; x += 2.5) line(proj(x, y1, z0), proj(x, y1, z1));
+      for (let z = Math.ceil(z0 / 2.5) * 2.5; z < z1; z += 2.5) line(proj(x0, y1, z), proj(x1, y1, z));
+      ctx.globalAlpha = alpha == null ? 1 : alpha;
+    } else if (th.top === 'shine') {
+      poly([proj(x0, y1, z0), proj(x0 + b.w * 0.45, y1, z0), proj(x0, y1, z0 + b.d * 0.45)], 'rgba(255,255,255,.22)');
+    }
+
+    // contornos: deixam os cantos de cada bloco bem definidos
+    if (th.edge === 'glow') {
+      ctx.strokeStyle = 'hsla(' + b.hue + ',100%,70%,.25)'; ctx.lineWidth = 4;
+      path(topF); ctx.stroke(); path(right); ctx.stroke(); path(left); ctx.stroke();
+      ctx.strokeStyle = 'hsl(' + b.hue + ',100%,75%)'; ctx.lineWidth = 1.5;
+    } else {
+      ctx.strokeStyle = th.edge === 'light' ? 'rgba(255,255,255,.45)' : 'rgba(0,0,0,.25)'; ctx.lineWidth = 1;
+    }
+    path(right); ctx.stroke(); path(left); ctx.stroke(); path(topF); ctx.stroke();
+    // brilho nas arestas da frente do topo e na quina vertical
+    if (th.edge !== 'glow') {
+      ctx.strokeStyle = 'rgba(255,255,255,.4)'; ctx.lineWidth = 1.2;
+      ctx.beginPath(); ctx.moveTo(topF[3][0], topF[3][1]); ctx.lineTo(topF[2][0], topF[2][1]); ctx.lineTo(topF[1][0], topF[1][1]); ctx.stroke();
+      ctx.strokeStyle = 'rgba(255,255,255,.18)';
+      line(proj(x1, y1, z1), proj(x1, y0, z1));
+    }
     ctx.globalAlpha = 1;
+  }
+
+  // ---------- Efeitos de fundo por tema ----------
+  let fx = [], fxTheme = '';
+  function initFx(th) {
+    fxTheme = th.id; fx = [];
+    const n = th.fx === 'confetti' ? 34 : th.fx === 'bubbles' ? 26 : th.fx === 'sparkles' ? 28 : 60;
+    for (let i = 0; i < n; i++) fx.push({ x: Math.random(), y: Math.random(), r: Math.random(), s: Math.random(), h: Math.random() * 360 });
+  }
+  function wrap(v, m) { return ((v % m) + m) % m; }
+
+  function drawFx(th, t) {
+    if (fxTheme !== th.id) initFx(th);
+    const par = camY * S * 0.08; // paralaxe leve conforme a torre sobe
+    ctx.save();
+    if (th.fx === 'stars' || th.fx === 'synth' || th.fx === 'sun') {
+      const lim = th.fx === 'stars' ? H : H * 0.6;
+      ctx.fillStyle = '#fff';
+      for (let i = 0; i < fx.length; i++) {
+        const p = fx[i];
+        ctx.globalAlpha = (th.fx === 'sun' ? 0.35 : 0.25) + 0.3 * Math.sin(t * 1.5 + p.s * 6.28);
+        ctx.beginPath(); ctx.arc(p.x * W, wrap(p.y * lim + par, lim), 0.6 + p.r * 1.3, 0, 6.29); ctx.fill();
+      }
+    }
+    if (th.fx === 'sun') {
+      const cx = W / 2, cy = H * 0.34, r = Math.min(W, H) * 0.24;
+      const g = ctx.createLinearGradient(0, cy - r, 0, cy + r);
+      g.addColorStop(0, '#ffe680'); g.addColorStop(1, '#ff5e8a');
+      ctx.globalAlpha = 0.55; ctx.fillStyle = g;
+      ctx.beginPath(); ctx.arc(cx, cy, r, 0, 6.29); ctx.fill();
+      // faixas recortadas no sol, estilo retrô
+      ctx.globalCompositeOperation = 'destination-out'; ctx.globalAlpha = 1;
+      for (let k = 0; k < 5; k++) ctx.fillRect(cx - r, cy + r * (0.15 + k * 0.18), r * 2, 2 + k * 1.6);
+      ctx.globalCompositeOperation = 'source-over';
+    }
+    if (th.fx === 'synth') {
+      const hz = H * 0.62;
+      ctx.strokeStyle = '#ff3df2'; ctx.lineWidth = 1;
+      for (let k = 0; k < 12; k++) {
+        const f = wrap(k / 12 + t * 0.05, 1);
+        const y = hz + (H - hz) * f * f;
+        ctx.globalAlpha = 0.08 + 0.3 * f; line([0, y], [W, y]);
+      }
+      ctx.globalAlpha = 0.25;
+      for (let k = -8; k <= 8; k++) line([W / 2 + k * 6, hz], [W / 2 + k * W * 0.18, H]);
+    }
+    if (th.fx === 'bubbles') {
+      ctx.strokeStyle = '#bfefff'; ctx.lineWidth = 1.2;
+      for (let i = 0; i < fx.length; i++) {
+        const p = fx[i];
+        const y = wrap(p.y * H - t * 18 * (0.4 + p.s) + par, H + 20) - 10;
+        const x = p.x * W + Math.sin(t + p.h) * 6;
+        ctx.globalAlpha = 0.18 + p.r * 0.25;
+        ctx.beginPath(); ctx.arc(x, y, 2 + p.r * 6, 0, 6.29); ctx.stroke();
+      }
+    }
+    if (th.fx === 'confetti') {
+      for (let i = 0; i < fx.length; i++) {
+        const p = fx[i];
+        const y = wrap(p.y * H + t * 14 * (0.4 + p.s) + par, H + 20) - 10;
+        ctx.save();
+        ctx.translate(p.x * W + Math.sin(t * 0.8 + p.h) * 10, y);
+        ctx.rotate(t * (0.5 + p.s) + p.h);
+        ctx.globalAlpha = 0.45;
+        ctx.fillStyle = 'hsl(' + p.h + ',80%,65%)';
+        ctx.fillRect(-3, -1.5, 6 + p.r * 4, 3);
+        ctx.restore();
+      }
+    }
+    if (th.fx === 'sparkles') {
+      ctx.fillStyle = '#ffe9a0';
+      for (let i = 0; i < fx.length; i++) {
+        const p = fx[i];
+        const a = Math.max(0, Math.sin(t * (0.8 + p.s) + p.h));
+        if (a < 0.05) continue;
+        const x = p.x * W, y = wrap(p.y * H + par, H), r = (2 + p.r * 4) * a;
+        ctx.globalAlpha = a * 0.7;
+        ctx.beginPath();
+        ctx.moveTo(x, y - r); ctx.lineTo(x + r * 0.25, y - r * 0.25); ctx.lineTo(x + r, y); ctx.lineTo(x + r * 0.25, y + r * 0.25);
+        ctx.lineTo(x, y + r); ctx.lineTo(x - r * 0.25, y + r * 0.25); ctx.lineTo(x - r, y); ctx.lineTo(x - r * 0.25, y - r * 0.25);
+        ctx.closePath(); ctx.fill();
+      }
+    }
+    ctx.restore();
   }
 
   function drawBackground() {
@@ -499,6 +625,7 @@
     const g = ctx.createLinearGradient(0, 0, 0, H);
     g.addColorStop(0, th.bg[0]); g.addColorStop(1, th.bg[1]);
     ctx.fillStyle = g; ctx.fillRect(0, 0, W, H);
+    drawFx(th, performance.now() / 1000);
   }
 
   function render() {
@@ -529,7 +656,7 @@
     last = now;
 
     if (state === 'playing' && cur) {
-      windT += dt * 1.2;
+      windT += dt * 1.0;
       cur.off += cur.dir * speed() * dt;
       if (cur.off > RANGE) { cur.off = RANGE; cur.dir = -1; }
       if (cur.off < -RANGE) { cur.off = -RANGE; cur.dir = 1; }
