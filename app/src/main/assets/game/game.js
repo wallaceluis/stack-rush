@@ -163,7 +163,8 @@
     const z = zone();
     let v = Math.min(11 + score * 0.18, 22);
     if (z.fast) v *= 1.25;
-    if (z.wobble) v *= 0.45 + 1.1 * Math.abs(Math.sin(windT));
+    // onda senoidal lenta (~5 s por ciclo) entre 65% e 135% da velocidade, sem trancos
+    if (z.wobble) v *= 1 + 0.35 * Math.sin(windT);
     return v;
   }
 
@@ -528,7 +529,7 @@
     last = now;
 
     if (state === 'playing' && cur) {
-      windT += dt * 2.4;
+      windT += dt * 1.2;
       cur.off += cur.dir * speed() * dt;
       if (cur.off > RANGE) { cur.off = RANGE; cur.dir = -1; }
       if (cur.off < -RANGE) { cur.off = -RANGE; cur.dir = 1; }
