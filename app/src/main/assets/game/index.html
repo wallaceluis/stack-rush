@@ -1,0 +1,63 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no,viewport-fit=cover">
+<meta name="theme-color" content="#1b1f3b">
+<title>Stack Rush</title>
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+<canvas id="game"></canvas>
+
+<div id="hud" class="hidden">
+  <div id="score">0</div>
+  <div id="combo" class="hidden">PERFEITO!</div>
+</div>
+
+<div id="menu" class="screen">
+  <div class="topbar">
+    <div class="coins"><span class="coin-ico"></span><span id="menu-coins">0</span></div>
+    <button id="btn-sound" class="icon-btn" aria-label="Som">🔊</button>
+  </div>
+  <h1 class="logo">STACK<br><span>RUSH</span></h1>
+  <div class="best" data-i18n="best">Recorde</div>
+  <div id="menu-best" class="best-value">0</div>
+  <div class="tap-hint" data-i18n="tap">Toque para jogar</div>
+  <div class="menu-actions">
+    <button id="btn-shop" class="btn secondary" data-i18n="shop">Temas</button>
+  </div>
+</div>
+
+<div id="over" class="screen hidden">
+  <div class="over-title" data-i18n="gameover">Fim de jogo</div>
+  <div id="over-score" class="over-score">0</div>
+  <div class="over-row"><span data-i18n="best">Recorde</span>: <b id="over-best">0</b></div>
+  <div class="over-row"><span class="coin-ico"></span> +<b id="over-coins">0</b></div>
+  <div id="new-best" class="new-best hidden" data-i18n="newbest">Novo recorde!</div>
+  <div class="over-actions">
+    <button id="btn-continue" class="btn reward"><span class="ad-badge">AD</span> <span data-i18n="continue">Continuar</span></button>
+    <button id="btn-double" class="btn reward"><span class="ad-badge">AD</span> <span data-i18n="double">Dobrar moedas</span></button>
+    <button id="btn-retry" class="btn primary" data-i18n="retry">Jogar de novo</button>
+    <button id="btn-home" class="btn ghost" data-i18n="home">Menu</button>
+  </div>
+</div>
+
+<div id="shop" class="screen hidden">
+  <div class="topbar">
+    <button id="btn-shop-back" class="icon-btn" aria-label="Voltar">←</button>
+    <div class="coins"><span class="coin-ico"></span><span id="shop-coins">0</span></div>
+  </div>
+  <h2 data-i18n="themes">Temas</h2>
+  <div id="theme-list" class="theme-list"></div>
+  <button id="btn-free-coins" class="btn reward"><span class="ad-badge">AD</span> <span data-i18n="freecoins">+100 moedas grátis</span></button>
+  <button id="btn-noads" class="btn secondary" data-i18n="noads">Remover anúncios</button>
+</div>
+
+<div id="toast" class="toast hidden"></div>
+<div id="fake-ad" class="fake-ad hidden"><div>Anúncio de teste<br><small>(simulado no navegador)</small></div></div>
+
+<script src="platform.js"></script>
+<script src="game.js"></script>
+</body>
+</html>

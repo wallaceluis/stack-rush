@@ -1,0 +1,53 @@
+* { box-sizing: border-box; margin: 0; padding: 0; -webkit-tap-highlight-color: transparent; user-select: none; -webkit-user-select: none; }
+html, body { width: 100%; height: 100%; overflow: hidden; background: #1b1f3b; font-family: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif; color: #fff; touch-action: manipulation; }
+canvas { position: fixed; inset: 0; width: 100%; height: 100%; display: block; }
+.hidden { display: none !important; }
+
+#hud { position: fixed; top: calc(env(safe-area-inset-top, 0px) + 48px); left: 0; right: 0; text-align: center; pointer-events: none; }
+#score { font-size: 72px; font-weight: 800; text-shadow: 0 4px 0 rgba(0,0,0,.18); }
+#combo { margin-top: 4px; font-size: 18px; font-weight: 800; letter-spacing: 2px; color: #fff7c2; animation: pop .35s ease-out; }
+@keyframes pop { from { transform: scale(1.6); opacity: 0; } to { transform: scale(1); opacity: 1; } }
+
+.screen { position: fixed; inset: 0; display: flex; flex-direction: column; align-items: center; padding: calc(env(safe-area-inset-top, 0px) + 16px) 20px 84px; /* 84px livres para o banner */ }
+#menu { justify-content: flex-start; }
+.topbar { width: 100%; display: flex; justify-content: space-between; align-items: center; }
+.coins { display: flex; align-items: center; gap: 6px; background: rgba(0,0,0,.25); padding: 6px 12px; border-radius: 999px; font-weight: 700; }
+.coin-ico { display: inline-block; width: 16px; height: 16px; border-radius: 50%; background: radial-gradient(circle at 35% 35%, #fff3a6, #f5b800 60%, #c98a00); box-shadow: 0 0 0 2px rgba(0,0,0,.15); vertical-align: middle; }
+.icon-btn { background: rgba(0,0,0,.25); color: #fff; border: 0; width: 40px; height: 40px; border-radius: 50%; font-size: 18px; }
+
+.logo { margin-top: 9vh; font-size: 54px; line-height: .95; font-weight: 900; text-align: center; letter-spacing: 2px; text-shadow: 0 5px 0 rgba(0,0,0,.2); }
+.logo span { color: #ffe066; }
+.best { margin-top: 28px; opacity: .8; font-size: 14px; text-transform: uppercase; letter-spacing: 2px; }
+.best-value { font-size: 36px; font-weight: 800; }
+.tap-hint { margin-top: auto; margin-bottom: 18px; font-size: 22px; font-weight: 800; text-shadow: 0 2px 8px rgba(0,0,0,.6); background: rgba(10,12,30,.55); padding: 8px 22px; border-radius: 999px; animation: pulse 1.2s ease-in-out infinite; }
+@keyframes pulse { 50% { transform: scale(.94); opacity: .75; } }
+.menu-actions { display: flex; gap: 10px; }
+
+.btn { border: 0; border-radius: 14px; padding: 14px 22px; font-size: 17px; font-weight: 800; color: #fff; min-width: 220px; box-shadow: 0 4px 0 rgba(0,0,0,.2); }
+.btn:active { transform: translateY(2px); box-shadow: 0 2px 0 rgba(0,0,0,.2); }
+.btn.primary { background: #2ecc71; }
+.btn.secondary { background: rgba(20,22,48,.85); }
+.btn.reward { background: #ff9f1c; }
+.btn.ghost { background: transparent; box-shadow: none; opacity: .85; }
+.btn:disabled { opacity: .4; }
+.ad-badge { font-size: 11px; background: rgba(0,0,0,.25); border-radius: 4px; padding: 2px 5px; vertical-align: middle; }
+
+#over { justify-content: center; background: rgba(10,12,30,.45); backdrop-filter: blur(2px); }
+.over-title { font-size: 18px; text-transform: uppercase; letter-spacing: 3px; opacity: .85; }
+.over-score { font-size: 88px; font-weight: 900; line-height: 1; margin: 6px 0 10px; }
+.over-row { font-size: 18px; margin: 2px 0; display: flex; align-items: center; gap: 6px; }
+.new-best { margin-top: 8px; color: #ffe066; font-weight: 800; animation: pop .4s ease-out; }
+.over-actions { margin-top: 22px; display: flex; flex-direction: column; gap: 10px; align-items: center; }
+
+#shop { background: rgba(10,12,30,.82); overflow-y: auto; }
+#shop h2 { margin: 14px 0; }
+.theme-list { width: 100%; max-width: 420px; display: grid; grid-template-columns: repeat(2, 1fr); gap: 12px; margin-bottom: 16px; }
+.theme { border-radius: 14px; padding: 12px; text-align: center; border: 3px solid transparent; background: rgba(255,255,255,.08); }
+.theme.selected { border-color: #ffe066; }
+.theme .swatch { height: 56px; border-radius: 10px; margin-bottom: 8px; }
+.theme .name { font-weight: 800; }
+.theme .price { font-size: 14px; opacity: .9; margin-top: 2px; display: flex; justify-content: center; align-items: center; gap: 4px; }
+#shop .btn { margin-top: 10px; }
+
+.toast { position: fixed; left: 50%; top: 40%; transform: translateX(-50%); background: rgba(0,0,0,.8); padding: 12px 18px; border-radius: 12px; font-weight: 700; z-index: 20; text-align: center; }
+.fake-ad { position: fixed; inset: 0; background: #000; z-index: 30; display: flex; align-items: center; justify-content: center; text-align: center; font-size: 22px; }
