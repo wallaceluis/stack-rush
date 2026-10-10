@@ -3,6 +3,8 @@
 Jogo hyper-casual de empilhar blocos com um toque. O bloco desliza; toque para soltar.
 O que passar da borda é cortado. Acertos perfeitos seguidos fazem o bloco crescer de novo.
 
+**Jogue no navegador:** https://wallaceluis.github.io/stack-rush/
+
 | Menu | Jogo | Fim de jogo | Temas |
 |---|---|---|---|
 | ![](store/screenshot-1-menu.png) | ![](store/screenshot-2-jogo.png) | ![](store/screenshot-3-fim.png) | ![](store/screenshot-4-temas.png) |
