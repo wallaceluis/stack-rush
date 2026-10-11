@@ -26,17 +26,17 @@
 
   function fakeAd(ms, done) {
     const el = document.getElementById('fake-ad');
-    muteHandler(true);
+    adMuted = true; applyMute();
     el.classList.remove('hidden');
-    setTimeout(function () { el.classList.add('hidden'); muteHandler(false); done(); }, ms);
+    setTimeout(function () { el.classList.add('hidden'); adMuted = false; applyMute(); done(); }, ms);
   }
 
   // Anúncio da CrazyGames: o áudio do jogo tem que ficar mudo enquanto ele roda.
   function cgAd(type, done) {
     cg.ad.requestAd(type, {
-      adStarted: function () { muteHandler(true); },
-      adFinished: function () { muteHandler(false); done(true); },
-      adError: function () { muteHandler(false); done(false); },
+      adStarted: function () { adMuted = true; applyMute(); },
+      adFinished: function () { adMuted = false; applyMute(); done(true); },
+      adError: function () { adMuted = false; applyMute(); done(false); },
     });
   }
 
@@ -46,10 +46,22 @@
     try { return window.localStorage; } catch (e) { return null; }
   }
 
+  // Mudo pedido pelo portal (botão de som da CrazyGames), separado do mudo durante anúncios.
+  let portalMuted = false;
+  let adMuted = false;
+  function applyMute() { muteHandler(portalMuted || adMuted); }
+
   const ready = (function () {
     if (!cg) return Promise.resolve();
     return Promise.resolve()
       .then(function () { return cg.init(); })
+      .then(function () {
+        try {
+          portalMuted = !!(cg.game.settings && cg.game.settings.muteAudio);
+          applyMute();
+          cg.game.addSettingsChangeListener(function (settings) { portalMuted = !!settings.muteAudio; applyMute(); });
+        } catch (e) { /* SDK sem settings */ }
+      })
       .catch(function (e) { console.warn('CrazyGames SDK init falhou', e); });
   })();
 
@@ -59,7 +71,7 @@
     canPurchase: !!native,
     ready: ready,
 
-    onMute(fn) { muteHandler = fn; },
+    onMute(fn) { muteHandler = fn; applyMute(); },
 
     getItem(key) {
       const s = store();

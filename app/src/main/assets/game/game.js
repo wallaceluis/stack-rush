@@ -727,7 +727,7 @@
 
   // exposto para testes automatizados
   window.__game = {
-    get state() { return state; }, get score() { return score; }, get cur() { return cur; },
+    get state() { return state; }, get muted() { return adMuted; }, get score() { return score; }, get cur() { return cur; },
     top: top, place: function () { if (cur) place(); }, save: save, zoneIndex: zoneIndex,
   };
 })();
