@@ -5,7 +5,6 @@
   const BASE = 10;            // lado do bloco inicial (unidades do mundo)
   const LAYER = 2;            // altura de cada camada
   const RANGE = 12;           // distância de onde o bloco vem
-  const PERFECT_TOL = 0.45;   // tolerância para "perfeito"
   const GROW_AFTER = 3;       // perfeitos seguidos para começar a crescer
   const GROW_BY = 0.6;
   const INTERSTITIAL_EVERY = 3;      // partidas entre intersticiais
@@ -14,6 +13,12 @@
   const DAILY_BONUS = 50;
   const FREE_COINS = 100;
   const SKU_REMOVE_ADS = 'remove_ads';
+  // Dificuldades: velocidade, tolerância do "perfeito" e multiplicador de moedas.
+  const DIFFS = {
+    easy:   { speed: 0.8,  tol: 0.6,  coins: 1 },
+    medium: { speed: 1,    tol: 0.45, coins: 1.5 },
+    hard:   { speed: 1.3,  tol: 0.3,  coins: 2 },
+  };
   const ZONE_SIZE = 15;              // andares por zona
   const ZONE_BONUS = 10;             // moedas por zona alcançada
   const MISSION_SLOTS = 3;
@@ -38,7 +43,7 @@
   ];
 
   const I18N_EN = {
-    best: 'Best', tap: 'Tap to play', shop: 'Themes', gameover: 'Game over', newbest: 'New best!',
+    easy: 'Easy', medium: 'Medium', hard: 'Hard', best: 'Best', tap: 'Tap to play', shop: 'Themes', gameover: 'Game over', newbest: 'New best!',
     continue: 'Continue', double: 'Double coins', retry: 'Play again', home: 'Menu', themes: 'Themes',
     freecoins: '+100 free coins', noads: 'Remove ads', perfect: 'PERFECT!', daily: 'Daily bonus',
     owned: 'Owned', noadsSoon: 'Coming soon', notReady: 'Ad not available right now',
@@ -67,10 +72,16 @@
 
   // ---------- Persistência ----------
   const STORE_KEY = 'stackrush.v1';
-  const save = { best: 0, coins: 0, theme: 'classic', owned: ['classic'], sound: true, lastDaily: '', games: 0, missions: [], mLevel: 0 };
+  const save = { best: 0, bests: {}, diff: 'medium', coins: 0, theme: 'classic', owned: ['classic'], sound: true, lastDaily: '', games: 0, missions: [], mLevel: 0 };
   function loadSave() {
     try { Object.assign(save, JSON.parse(Platform.getItem(STORE_KEY)) || {}); } catch (e) { /* save corrompido: começa do zero */ }
+    if (!DIFFS[save.diff]) save.diff = 'medium';
+    if (!save.bests || typeof save.bests !== 'object') save.bests = {};
+    // recorde de antes das dificuldades vira o recorde do médio
+    if (save.best && save.bests.medium == null) save.bests.medium = save.best;
   }
+  function diff() { return DIFFS[save.diff]; }
+  function best() { return save.bests[save.diff] || 0; }
   function persist() { Platform.setItem(STORE_KEY, JSON.stringify(save)); }
 
   // ---------- Elementos ----------
@@ -162,7 +173,7 @@
 
   function speed() {
     const z = zone();
-    let v = Math.min(9 + score * 0.12, 18);
+    let v = Math.min(9 + score * 0.12, 18) * diff().speed;
     if (z.fast) v *= 1.15;
     // onda senoidal lenta (~6 s por ciclo) entre 72% e 112% da velocidade, sem trancos
     if (z.wobble) v *= 0.92 + 0.2 * Math.sin(windT);
@@ -190,7 +201,7 @@
     const delta = ax === 'x' ? cur.cx - p.cx : cur.cz - p.cz;
     const abs = Math.abs(delta);
 
-    if (abs <= PERFECT_TOL) {
+    if (abs <= diff().tol) {
       if (ax === 'x') cur.cx = p.cx; else cur.cz = p.cz;
       combo++; perfects++;
       maxCombo = Math.max(maxCombo, combo);
@@ -324,7 +335,8 @@
     state = 'menu';
     resetWorld();
     ui.menuCoins.textContent = save.coins;
-    ui.menuBest.textContent = save.best;
+    ui.menuBest.textContent = best();
+    renderDiff();
     ui.btnSound.textContent = save.sound ? '🔊' : '🔇';
     renderMissions();
     show('menu');
@@ -348,10 +360,10 @@
     state = 'over';
     save.games++;
     gamesSinceAd++;
-    runCoins = score + perfects + zoneIndex(score) * ZONE_BONUS;
+    runCoins = Math.round((score + perfects + zoneIndex(score) * ZONE_BONUS) * diff().coins);
     save.coins += runCoins;
-    const isBest = score > save.best;
-    if (isBest) { save.best = score; Platform.happytime(); }
+    const isBest = score > best();
+    if (isBest) { save.bests[save.diff] = score; save.best = Math.max(save.best, score); Platform.happytime(); }
     const done = settleMissions();
     persist();
 
@@ -365,7 +377,7 @@
     if (done.length) setTimeout(function () { tone(660, 0.15, 'triangle'); tone(990, 0.3, 'triangle'); }, 200);
 
     ui.overScore.textContent = score;
-    ui.overBest.textContent = save.best;
+    ui.overBest.textContent = best();
     ui.overCoins.textContent = runCoins;
     ui.newBest.classList.toggle('hidden', !isBest);
     ui.btnContinue.classList.toggle('hidden', usedContinue || score < CONTINUE_MIN_SCORE);
@@ -452,6 +464,16 @@
   });
   ui.btnShop.addEventListener('click', function () { state = 'shop'; renderShop(); show('shop'); });
   ui.btnShopBack.addEventListener('click', goMenu);
+  function renderDiff() {
+    document.querySelectorAll('#diff button').forEach(function (b) { b.classList.toggle('on', b.dataset.d === save.diff); });
+  }
+  document.querySelectorAll('#diff button').forEach(function (b) {
+    b.addEventListener('click', function () {
+      save.diff = b.dataset.d; persist();
+      ui.menuBest.textContent = best();
+      renderDiff(); tone(600, 0.08, 'triangle');
+    });
+  });
   ui.btnSound.addEventListener('click', function () { save.sound = !save.sound; persist(); ui.btnSound.textContent = save.sound ? '🔊' : '🔇'; });
   ui.btnFreeCoins.addEventListener('click', function () {
     rewarded('coins', function () { save.coins += FREE_COINS; persist(); renderShop(); toast('+' + FREE_COINS); });

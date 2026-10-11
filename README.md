@@ -20,6 +20,11 @@ O que passar da borda é cortado. Acertos perfeitos seguidos fazem o bloco cresc
 | Banner adaptativo | Banner | Só no menu, fim de jogo e temas (nunca durante a partida, para não gerar clique acidental) |
 | Remover anúncios | Compra única (`remove_ads`) | Tela de temas |
 
+## Dificuldades
+
+No menu dá para escolher Fácil, Médio ou Difícil. Muda a velocidade do bloco e a tolerância do "perfeito";
+o recorde é separado por dificuldade e as moedas valem 1x, 1,5x e 2x.
+
 ## Zonas e missões
 
 A cada 15 andares o jogo entra numa zona nova, com uma regra diferente:
